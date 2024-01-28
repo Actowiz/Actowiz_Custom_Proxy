@@ -1,7 +1,6 @@
 from scrapy import signals
 from elasticsearch import Elasticsearch
-import os, pytz, socket
-from datetime import datetime
+import os, socket
 
 
 class ActowizProxyMiddleware:
@@ -9,8 +8,8 @@ class ActowizProxyMiddleware:
     def __init__(self, settings):
         self.proxy_name = settings.get('PROXY_NAME')
         self.project_name = settings.get('BOT_NAME')
-        self.is_customized = settings.get('IS_CUSTOMIZED')
-        self.proxy = os.environ.get(self.proxy_name)
+        self.proxy_options = settings.get('PROXY_OPTIONS')
+        self.proxy = os.environ.get(f"{self.proxy_name}_{self.proxy_options.get('key_id')}")
         self.proxy_count = {}
         self.ipaddress = socket.gethostbyname(socket.gethostname())
         self.es = Elasticsearch(
@@ -28,12 +27,14 @@ class ActowizProxyMiddleware:
 
     def process_request(self, request, spider):
         if self.proxy:
-            if self.proxy_name == 'SCRAPERAPI' and self.is_customized:
-                proxy = f"http://scraperapi.keep_headers=true:{self.proxy_name}@proxy-server.scraperapi.com:8001"
+            if self.proxy_name == 'ACT_CUSTOM_PROXY_1':
+                if self.proxy_options:
+                    proxy = f"http://scraperapi.keep_headers={self.proxy_options.get('proxy_options').get('custom_headers')}.render={self.proxy_options.get('proxy_options').get('render')}.country_code={self.proxy_options.get('proxy_options').get('country_code')}:{self.proxy}@proxy-server.scraperapi.com:8001"
+                else:
+                    proxy = f"http://scraperapi:{self.proxy}@proxy-server.scraperapi.com:8001"
                 request.meta['proxy'] = proxy
-            elif self.proxy_name == 'SCRAPERAPI' and self.is_customized:
-                proxy = f"http://scraperapi.keep_headers=true:{self.proxy_name}@proxy-server.scraperapi.com:8001"
-                request.meta['proxy'] = proxy
+
+            print(f"Request was made with {self.proxy_name}")
 
 
     def process_response(self, request, response, spider):
